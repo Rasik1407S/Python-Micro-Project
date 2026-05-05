@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudoku</title>
+
+  <!-- Fonts: Cinzel (classical display) + Courier Prime (grid numbers) + Jost (UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Courier+Prime:wght@400;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- React 18 + Babel (no build step required) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       Design system — oxidised-bronze / forest-shadow palette
+       ══════════════════════════════════════════════════════════ */
+    :root {
+      --bg:            #080f0b;
+      --surface:       #0d1710;
+      --board-bg:      #0a120d;
+      --cell-hl:       #111d14;
+      --cell-same:     #162018;
+      --cell-sel-bg:   #1c0e04;
+
+      --bronze:        #c8873a;
+      --bronze-dim:    #7a4f1e;
+      --bronze-subtle: rgba(200,135,58,.12);
+      --bronze-glow:   rgba(200,135,58,.25);
+      --jade:          #5db89a;
+      --jade-dim:      #2e6e58;
+      --red:           #cc4f46;
+      --red-subtle:    rgba(204,79,70,.1);
+
+      --cream:         #e2cfa0;
+      --cream-dim:     #8a7850;
+      --muted:         #3e5848;
+
+      --border-outer:  #2e5040;
+      --border-box:    #233828;
+      --border-cell:   #131e15;
+
+      --radius:        2px;
+
+      /* Subtle noise texture via SVG data-URI */
+      --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      background-image: var(--noise);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      font-family: 'Jost', sans-serif;
+      color: var(--cream);
+    }
+
+    /* ── Shell ───────────────────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-box);
+      padding-bottom: 14px;
+    }
+
+    .title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      color: var(--bronze);
+      text-shadow: 0 0 40px var(--bronze-glow);
+      line-height: 1;
+    }
+
+    .meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .timer {
+      font-family: 'Courier Prime', monospace;
+      font-size: 1.25rem;
+      color: var(--cream);
+      letter-spacing: 0.05em;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .badge.easy   { color: #5ecb8a; border-color: #2a6040; background: #0a1e10; }
+    .badge.medium { color: var(--bronze); border-color: var(--bronze-dim); background: #180c04; }
+    .badge.hard   { color: var(--red); border-color: #5a2020; background: #180808; }
+    .badge.hints  { color: var(--muted); border-color: var(--border-box); background: transparent; }
+
+    /* ── Message banner ─────────────────────────────────────── */
+    .banner {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      letter-spacing: 0.03em;
+      text-align: center;
+      border: 1px solid;
+      animation: slideIn .25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+    .banner.success { color: #5ecb8a; background: #081810; border-color: #1e5030; }
+    .banner.error   { color: var(--red); background: #180808; border-color: #4a1818; }
+    .banner.info    { color: var(--jade); background: #081610; border-color: #1e4030; }
+
+    /* ── Board ──────────────────────────────────────────────── */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows:    repeat(9, 1fr);
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: var(--board-bg);
+      border: 2px solid var(--border-outer);
+      border-radius: var(--radius);
+      overflow: hidden;
+      outline: none;
+      user-select: none;
+      box-shadow:
+        0 0 0 1px rgba(200,135,58,.06),
+        0 8px 40px rgba(0,0,0,.5),
+        inset 0 0 60px rgba(0,0,0,.3);
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right:  1px solid var(--border-cell);
+      border-bottom: 1px solid var(--border-cell);
+      font-family: 'Courier Prime', monospace;
+      font-size: clamp(13px, 3.8vw, 22px);
+      cursor: pointer;
+      transition: background 0.08s ease, color 0.08s ease;
+      color: var(--jade);
+      position: relative;
+    }
+
+    /* Remove outer-edge borders (board border handles it) */
+    .cell:nth-child(9n)         { border-right: none; }
+    .cell:nth-last-child(-n+9)  { border-bottom: none; }
+
+    /* 3×3 box separators */
+    .cell.box-left { border-left:  2px solid var(--border-box); }
+    .cell.box-top  { border-top:   2px solid var(--border-box); }
+
+    /* States */
+    .cell.original               { color: var(--cream); font-weight: 700; }
+    .cell.highlighted            { background: var(--cell-hl); }
+    .cell.same-number            { background: var(--cell-same); color: var(--jade); }
+    .cell.same-number.original   { color: var(--cream); }
+    .cell.error                  { color: var(--red) !important; background: var(--red-subtle); }
+
+    .cell.selected {
+      background: var(--cell-sel-bg) !important;
+      box-shadow: inset 0 0 0 2px var(--bronze);
+      color: var(--bronze) !important;
+      font-weight: 700;
+    }
+
+    .cell:not(.selected):not(.error):hover { background: #162018; }
+
+    /* Loading placeholder */
+    .board-placeholder {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--board-bg);
+      border: 2px solid var(--border-outer);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--border-box);
+      border-top-color: var(--bronze);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Number pad ─────────────────────────────────────────── */
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 5px;
+      width: 100%;
+    }
+
+    .num-btn {
+      background: var(--surface);
+      border: 1px solid var(--border-box);
+      color: var(--cream-dim);
+      font-family: 'Courier Prime', monospace;
+      font-size: clamp(12px, 2.8vw, 18px);
+      font-weight: 700;
+      padding: 10px 2px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all .12s ease;
+      line-height: 1;
+    }
+    .num-btn:hover  { background: #162018; border-color: var(--bronze-dim); color: var(--bronze); }
+    .num-btn:active { transform: scale(.93); }
+    .num-btn.erase  { color: var(--muted); font-size: clamp(11px, 2vw, 15px); }
+    .num-btn.erase:hover { color: var(--red); border-color: #4a1818; background: #180808; }
+
+    /* ── Action controls ────────────────────────────────────── */
+    .controls {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--surface);
+      border: 1px solid var(--border-box);
+      color: var(--cream-dim);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all .12s ease;
+      white-space: nowrap;
+    }
+    .btn:hover         { border-color: var(--bronze-dim); color: var(--bronze); background: #180c04; }
+    .btn:active        { transform: scale(.96); }
+    .btn:disabled      { opacity: .35; cursor: default; }
+
+    .diff-group {
+      display: flex;
+      gap: 5px;
+      margin-left: auto;
+    }
+    .diff-btn {
+      background: transparent;
+      border: 1px solid var(--border-box);
+      color: var(--muted);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: capitalize;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all .12s ease;
+    }
+    .diff-btn:hover  { color: var(--cream-dim); border-color: #2e4030; }
+    .diff-btn.active { color: var(--bronze); border-color: var(--bronze-dim); background: #1c0e04; }
+
+    /* ── Footer note ────────────────────────────────────────── */
+    .footer {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-align: center;
+      opacity: .6;
+    }
+    .footer kbd {
+      background: var(--surface);
+      border: 1px solid var(--border-box);
+      border-radius: 2px;
+      padding: 1px 5px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 0.65rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const API   = 'http://localhost:5000/api';
+    const EMPTY = () => Array.from({ length: 9 }, () => Array(9).fill(0));
+    const fmt   = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+
+    // ── Cell class builder ─────────────────────────────────────────────────────
+    function cellCls(r, c, board, original, sel, errors) {
+      let cls = 'cell';
+      if (c === 3 || c === 6) cls += ' box-left';
+      if (r === 3 || r === 6) cls += ' box-top';
+
+      const isOrig = original[r][c] !== 0;
+      const isSel  = sel && sel[0] === r && sel[1] === c;
+      const isErr  = errors.has(`${r},${c}`);
+      const isHL   = sel && !isSel && (
+        r === sel[0] || c === sel[1] ||
+        (Math.floor(r/3) === Math.floor(sel[0]/3) &&
+         Math.floor(c/3) === Math.floor(sel[1]/3))
+      );
+      const isSame = sel && !isSel && board[r][c] !== 0 &&
+                     board[r][c] === board[sel[0]][sel[1]];
+
+      if (isOrig) cls += ' original';
+      if (isSel)  cls += ' selected';
+      else if (isErr)  cls += ' error';
+      else if (isSame) cls += ' same-number';
+      else if (isHL)   cls += ' highlighted';
+
+      return cls;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  App
+    // ══════════════════════════════════════════════════════════════════════════
+    function App() {
+
+      // ── State ────────────────────────────────────────────────────────────────
+      const [board,      setBoard]      = useState(EMPTY());
+      const [original,   setOriginal]   = useState(EMPTY());
+      const [gameId,     setGameId]     = useState(null);
+      const [selected,   setSelected]   = useState(null);
+      const [errors,     setErrors]     = useState(new Set());
+      const [difficulty, setDifficulty] = useState('medium');
+      const [hints,      setHints]      = useState(0);
+      const [elapsed,    setElapsed]    = useState(0);
+      const [running,    setRunning]    = useState(false);
+      const [complete,   setComplete]   = useState(false);
+      const [loading,    setLoading]    = useState(false);
+      const [banner,     setBanner]     = useState({ text: '', type: 'info' });
+
+      // ── Refs (stale-closure-safe keyboard handler) ───────────────────────────
+      const boardRef    = useRef(board);
+      const originalRef = useRef(original);
+      const selectedRef = useRef(selected);
+      const gameIdRef   = useRef(gameId);
+      const completeRef = useRef(complete);
+
+      useEffect(() => { boardRef.current    = board;    }, [board]);
+      useEffect(() => { originalRef.current = original; }, [original]);
+      useEffect(() => { selectedRef.current = selected; }, [selected]);
+      useEffect(() => { gameIdRef.current   = gameId;   }, [gameId]);
+      useEffect(() => { completeRef.current = complete; }, [complete]);
+
+      // ── Timer ────────────────────────────────────────────────────────────────
+      useEffect(() => {
+        if (!running) return;
+        const id = setInterval(() => setElapsed(e => e + 1), 1000);
+        return () => clearInterval(id);
+      }, [running]);
+
+      const flash = (text, type = 'info') => setBanner({ text, type });
+
+      // ── Backend calls ─────────────────────────────────────────────────────────
+
+      // validate() — stable: only uses React setters (no closures over state)
+      const validate = useCallback(async (b) => {
+        try {
+          const res  = await fetch(`${API}/validate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ board: b }),
+          });
+          const data = await res.json();
+          const errSet = new Set(data.errors.map(([r, c]) => `${r},${c}`));
+          setErrors(errSet);
+          if (data.complete) {
+            setRunning(false);
+            setComplete(true);
+            completeRef.current = true;
+            setBanner({ text: '✦  Puzzle solved — well played.', type: 'success' });
+          }
+        } catch {
+          setBanner({ text: 'Connection error — is sudoku_backend.py running?', type: 'error' });
+        }
+      }, []);
+
+      // placeNumber() — stable: uses refs + stable validate + React setters
+      const placeNumber = useCallback(async (num, sel) => {
+        if (!sel || completeRef.current) return;
+        const [r, c] = sel;
+        if (originalRef.current[r][c] !== 0) return;         // Can't edit clues
+        const nb = boardRef.current.map(row => [...row]);
+        nb[r][c] = num;
+        setBoard(nb);
+        boardRef.current = nb;
+        await validate(nb);
+      }, [validate]);
+
+      // ── New game ──────────────────────────────────────────────────────────────
+      const newGame = async (diff = difficulty) => {
+        setLoading(true);
+        setComplete(false);
+        completeRef.current = false;
+        setSelected(null);
+        selectedRef.current = null;
+        setErrors(new Set());
+        setHints(0);
+        setElapsed(0);
+        setRunning(false);
+        setBanner({ text: '', type: 'info' });
+
+        try {
+          const res  = await fetch(`${API}/new-game`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ difficulty: diff }),
+          });
+          const data = await res.json();
+          const b = data.board.map(r => [...r]);
+          const o = data.original.map(r => [...r]);
+          setBoard(b);       boardRef.current    = b;
+          setOriginal(o);    originalRef.current = o;
+          setGameId(data.game_id);
+          gameIdRef.current = data.game_id;
+          setDifficulty(diff);
+          setRunning(true);
+        } catch {
+          flash('Cannot reach backend. Run:  python sudoku_backend.py', 'error');
+        }
+        setLoading(false);
+      };
+
+      // ── Hint ──────────────────────────────────────────────────────────────────
+      const getHint = async () => {
+        if (!gameIdRef.current || completeRef.current) return;
+        try {
+          const res  = await fetch(`${API}/hint`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: gameIdRef.current, board: boardRef.current }),
+          });
+          const data = await res.json();
+          if (data.row !== undefined) {
+            const nb = boardRef.current.map(r => [...r]);
+            nb[data.row][data.col] = data.value;
+            setBoard(nb);
+            boardRef.current = nb;
+            const newSel = [data.row, data.col];
+            setSelected(newSel);
+            selectedRef.current = newSel;
+            setHints(h => h + 1);
+            await validate(nb);
+          }
+        } catch {
+          flash('Connection error.', 'error');
+        }
+      };
+
+      // ── Solve ─────────────────────────────────────────────────────────────────
+      const solvePuzzle = async () => {
+        if (!gameIdRef.current) return;
+        try {
+          const res  = await fetch(`${API}/solve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: gameIdRef.current }),
+          });
+          const data = await res.json();
+          const b = data.solution.map(r => [...r]);
+          setBoard(b);
+          boardRef.current = b;
+          setErrors(new Set());
+          setRunning(false);
+          setComplete(true);
+          completeRef.current = true;
+          flash('Board solved by the computer.', 'success');
+        } catch {
+          flash('Connection error.', 'error');
+        }
+      };
+
+      // ── Keyboard handler (registered once; uses refs for fresh state) ──────────
+      useEffect(() => {
+        const MOVES = {
+          ArrowUp:    [-1, 0],
+          ArrowDown:  [ 1, 0],
+          ArrowLeft:  [ 0,-1],
+          ArrowRight: [ 0, 1],
+        };
+
+        const onKey = async (e) => {
+          const sel = selectedRef.current;
+
+          // Arrow navigation (works even without a selected cell)
+          if (MOVES[e.key]) {
+            e.preventDefault();
+            const [r, c] = sel ?? [4, 4];
+            const [dr, dc] = MOVES[e.key];
+            const next = [Math.max(0, Math.min(8, r+dr)), Math.max(0, Math.min(8, c+dc))];
+            setSelected(next);
+            selectedRef.current = next;
+            return;
+          }
+
+          if (!sel || completeRef.current) return;
+
+          if (e.key >= '1' && e.key <= '9') {
+            e.preventDefault();
+            await placeNumber(+e.key, sel);
+          } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+            e.preventDefault();
+            await placeNumber(0, sel);
+          }
+        };
+
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [placeNumber]); // placeNumber is stable (useCallback [])
+
+      // ── Initial load ──────────────────────────────────────────────────────────
+      useEffect(() => { newGame(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+      // ── Render ────────────────────────────────────────────────────────────────
+      const emptyCells = board.flat().filter(v => v === 0).length;
+
+      return (
+        <div className="app">
+
+          {/* ── Header ── */}
+          <div className="header">
+            <div className="title">SUDOKU</div>
+            <div className="meta">
+              <div className="timer">{fmt(elapsed)}</div>
+              <div className="badges">
+                <span className={`badge ${difficulty}`}>{difficulty}</span>
+                {hints > 0 && (
+                  <span className="badge hints">{hints} hint{hints > 1 ? 's' : ''}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Message banner ── */}
+          {banner.text && (
+            <div className={`banner ${banner.type}`} key={banner.text}>
+              {banner.text}
+            </div>
+          )}
+
+          {/* ── Board ── */}
+          {loading ? (
+            <div className="board-placeholder">
+              <div className="spinner" />
+              <span>Generating puzzle…</span>
+            </div>
+          ) : (
+            <div
+              className="board"
+              tabIndex={0}
+              onFocus={() => {}}
+            >
+              {board.map((row, r) =>
+                row.map((val, c) => (
+                  <div
+                    key={`${r}-${c}`}
+                    className={cellCls(r, c, board, original, selected, errors)}
+                    onClick={() => {
+                      if (!complete) {
+                        const next = [r, c];
+                        setSelected(next);
+                        selectedRef.current = next;
+                      }
+                    }}
+                  >
+                    {val !== 0 ? val : ''}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* ── Number pad ── */}
+          <div className="numpad">
+            {[1,2,3,4,5,6,7,8,9].map(n => (
+              <button
+                key={n}
+                className="num-btn"
+                onClick={() => placeNumber(n, selectedRef.current)}
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              className="num-btn erase"
+              onClick={() => placeNumber(0, selectedRef.current)}
+            >
+              ⌫
+            </button>
+          </div>
+
+          {/* ── Controls ── */}
+          <div className="controls">
+            <button className="btn" onClick={getHint}    disabled={loading || complete}>Hint</button>
+            <button className="btn" onClick={solvePuzzle} disabled={loading || complete}>Solve</button>
+            <div className="diff-group">
+              {['easy','medium','hard'].map(d => (
+                <button
+                  key={d}
+                  className={`diff-btn${d === difficulty ? ' active' : ''}`}
+                  onClick={() => newGame(d)}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Footer ── */}
+          <div className="footer">
+            Click a cell · type a digit · use
+            &nbsp;<kbd>↑ ↓ ← →</kbd>&nbsp;
+            to navigate · <kbd>Del</kbd> to clear
+          </div>
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
