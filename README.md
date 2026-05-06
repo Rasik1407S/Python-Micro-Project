@@ -8,7 +8,6 @@
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue?style=flat-square)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.x-lightgrey?style=flat-square)](https://flask.palletsprojects.com/)
 [![React](https://img.shields.io/badge/react-18-61dafb?style=flat-square)](https://react.dev/)
-[![No Build Step](https://img.shields.io/badge/build-none-success?style=flat-square)]()
 [![Last Commit](https://img.shields.io/github/last-commit/Rasik1407S/Python-Micro-Project?style=flat-square)](https://github.com/Rasik1407S/Python-Micro-Project/commits)
 [![Issues](https://img.shields.io/github/issues/Rasik1407S/Python-Micro-Project?style=flat-square)](https://github.com/Rasik1407S/Python-Micro-Project/issues)
 
@@ -20,15 +19,15 @@
 
 ## 📋 Table of Contents
 
-- [About](#about)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Running the Game](#running-the-game)
-- [API Reference](#api-reference)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
+- [About](https://github.com/Rasik1407S/Python-Micro-Project/edit/main/README.md#-about)
+- [Features](https://github.com/Rasik1407S/Python-Micro-Project/edit/main/README.md#-features)
+- [Architecture](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#%EF%B8%8F-architecture)
+- [Tech Stack](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#%EF%B8%8F-tech-stack)
+- [Prerequisites](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#-prerequisites)
+- [Running the Game](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#%EF%B8%8F-running-the-game)
+- [API Reference](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#-api-reference)
+- [Project Structure](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#-project-structure)
+- [Contributing](https://github.com/Rasik1407S/Python-Micro-Project/tree/main#-contributing)
 
 ---
 
